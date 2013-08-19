@@ -1,0 +1,32 @@
+#!/usr/bin/env php -q
+<?php
+
+$subl = '/usr/local/bin/subl';
+
+if( empty($argv[1]) )
+	exit(1);
+
+$parts = parse_url( $argv[1] );
+
+$scheme = $parts['scheme'];
+$action = $parts['host'];
+$query = $parts['query'];
+
+$file = false;
+$line = false;
+
+//parse_str( $query, $action );
+parse_str( $query );
+
+if( empty($file) )
+	exit(1);
+
+if( !empty($line) && intval($line) )
+	$file = $file . ':' . intval($line);
+
+$cmd = escapeshellcmd($subl) . ' ' . escapeshellarg( $file );
+
+//echo "$cmd\n";
+exec( $cmd, $output, $retval );
+
+exit($retval);

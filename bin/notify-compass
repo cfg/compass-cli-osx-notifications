@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Don't modify anything here, set values in ~/.compass-notify.config
+
+####################
+# beg default config
+####################
+# Compass root directory - necessary because iTerm2 doesn't know the full path
+BASE=""
+
+# set to 1 to use growl, 0 to use notification center (via terminal-notifier)
+USE_GROWL="0"
+
+# If using notification center, open files using subl file:line instead of with subl:// url (which require a custom handler)
+NC_USE_SUBL_COMMAND="01"
+
+# optional - path for an icon for growl notifications
+GROWL_ICON="/Applications/Utilities/Terminal.app/Contents/Resources/Terminal.icns"
+
+# path to various binaries
+GROWL_NOTIFY_PATH="/usr/local/bin/growlnotify"
+TERMINAL_NOTIFY_PATH="/usr/local/bin/terminal-notifier"
+SUBL_PATH="/usr/local/bin/subl"
+
+####################
+# end default config
+####################
+
+if [[ -f  $HOME/.compass-notify.config ]] ; then
+	source  $HOME/.compass-notify.config
+else
+	echo "$0: no user config file found, aborting."
+	exit 1
+fi
+
+if [[ -z "$BASE" ]] ; then
+	echo "$0: no base directory set, aborting."
+	exit 1
+fi
+
+# return 0 if program version is equal or greater than check version
+check_version() {
+	local version=$1 check=$2
+	local winner=$(echo -e "$version\n$check" | sed '/^$/d' | sort -nr | head -1)
+	[[ "$winner" = "$version" ]] && return 0
+	return 1
+}
+
+
+# Check to see if we're on 10.8+ for notification center support
+if [[ "$USE_GROWL" -eq 1 && $(check_version "$(sw_vers -productVersion)" "10.8") == 1 ]] ; then
+	USE_GROWL="0"
+fi
+
+MESSAGE=""
+if [ ! -t 0 ] ; then
+	read -e MESSAGE
+fi
+
+FILE="$1"
+LINE="$2"
+TITLE="$3"
+shift
+shift
+shift
+
+SUBL_URL="subl://open/?file=$BASE/$FILE&line=$LINE"
+SUBL_FILE="$BASE/$FILE:$LINE"
+
+if [[ -z "$MESSAGE" ]] ; then
+	if [[ "$USE_GROWL" -eq "1" ]] ; then
+		"$GROWL_NOTIFY_PATH" --image "$GROWL_ICON" -n compass-cli --url "$SUBL_URL" --title "$TITLE" "$@"
+	else
+		if [[ "$NC_USE_SUBL_COMMAND" -eq "1" ]] ; then
+			"$TERMINAL_NOTIFY_PATH" -execute "$SUBL_PATH '$SUBL_FILE'" -title "$TITLE" "$@"
+		else
+			"$TERMINAL_NOTIFY_PATH" -open "$SUBL_URL" -title "$TITLE" "$@"
+		fi
+	fi
+else
+	if [[ "$USE_GROWL" -eq "1" ]] ; then
+		"$GROWL_NOTIFY_PATH" --image "$GROWL_ICON" -n compass-cli --url "$SUBL_URL" --title "$TITLE" -m "$MESSAGE" "$@"
+	else
+		if [[ "$NC_USE_SUBL_COMMAND" -eq "1" ]] ; then
+			"$TERMINAL_NOTIFY_PATH" -execute "$SUBL_PATH '$SUBL_FILE'" -title "$TITLE" -message "$MESSAGE" "$@"
+		else
+			"$TERMINAL_NOTIFY_PATH" -open "$SUBL_URL" -title "$TITLE" -message "$MESSAGE" "$@"
+		fi
+	fi
+fi
